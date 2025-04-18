@@ -157,3 +157,290 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Sensor animation keyframes and utilities */
+@keyframes sensor-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes sensor-node-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes sensor-data-pulse {
+    0% { left: 100%; opacity: 1; }
+    100% { left: 0; opacity: 0; }
+}
+
+/* Additional animations for floating particles and rotation */
+@keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, -20px) scale(1.2); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-sensor-pulse {
+    animation: sensor-pulse 3s infinite ease-in-out;
+}
+
+.animate-sensor-node-pulse {
+    animation: sensor-node-pulse 2s infinite ease-in-out;
+}
+
+.animate-sensor-data-pulse {
+    animation: sensor-data-pulse 2s infinite linear;
+}
+
+.sensor-hub-shadow {
+    box-shadow: 0 0 15px rgba(37, 99, 235, 0.5);
+}
+
+.sensor-node-shadow {
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+/* Enhanced Light Rays Animation */
+.lightrays-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --hover-intensity: 1;
+}
+
+/* Color theme gradients */
+.cool-gradient {
+  background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.1), transparent 70%);
+}
+
+.warm-gradient {
+  background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(251, 113, 133, 0.15), rgba(251, 146, 60, 0.1), transparent 70%);
+}
+
+.rainbow-gradient {
+  background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), 
+    rgba(239, 68, 68, 0.1),
+    rgba(249, 115, 22, 0.1), 
+    rgba(234, 179, 8, 0.08),
+    rgba(34, 197, 94, 0.06), 
+    rgba(59, 130, 246, 0.04), 
+    transparent 80%);
+}
+
+.monochrome-gradient {
+  background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.15), rgba(100, 100, 100, 0.05), transparent 70%);
+}
+
+/* Main ray animation */
+@keyframes lightray-animate {
+  0% {
+    opacity: 0;
+    height: 0;
+    transform-origin: top;
+    filter: blur(2px);
+  }
+  15% {
+    opacity: calc(0.3 * var(--hover-intensity));
+    filter: blur(1px);
+  }
+  50% {
+    height: 100vh;
+    filter: blur(2px);
+  }
+  85% {
+    opacity: calc(0.2 * var(--hover-intensity));
+  }
+  100% {
+    opacity: 0;
+    height: 150vh;
+    transform-origin: top;
+    filter: blur(3px);
+  }
+}
+
+.lightray {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3px;
+  height: 0;
+  transform-origin: top center;
+  filter: blur(2px);
+  animation: lightray-animate 8s infinite ease-out;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Floating particles animation */
+@keyframes float-particle {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0;
+    filter: blur(1px);
+  }
+  10% {
+    opacity: calc(0.6 * var(--hover-intensity));
+  }
+  50% {
+    transform: translate(calc(var(--translate-x) * 1px), calc(var(--translate-y) * 1px)) 
+               rotate(calc(var(--rotate) * 1deg)) 
+               scale(calc(1.2 * var(--hover-intensity)));
+    opacity: calc(0.8 * var(--hover-intensity));
+    filter: blur(calc(1px * var(--hover-intensity)));
+  }
+  90% {
+    opacity: calc(0.4 * var(--hover-intensity));
+  }
+  100% {
+    transform: translate(calc(var(--translate-x) * 2px), calc(var(--translate-y) * 2px)) 
+               rotate(calc(var(--rotate) * 2deg)) 
+               scale(1);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+.floating-particle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  --translate-x: calc(Math.random() * 100 - 50);
+  --translate-y: calc(Math.random() * 100 - 50);
+  --rotate: calc(Math.random() * 360);
+  animation: float-particle 20s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  box-shadow: 0 0 5px currentColor;
+  filter: blur(1px);
+}
+
+/* Pulsating ring animation */
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.1);
+    filter: blur(1px);
+  }
+  50% {
+    opacity: 0.3;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+    filter: blur(3px);
+  }
+}
+
+.pulsating-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 100vmax;
+  height: 100vmax;
+  border-radius: 50%;
+  animation: pulse-ring 8s infinite cubic-bezier(0.3, 0, 0.7, 1);
+}
+
+.cool-theme .pulsating-ring {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.05) 50%, transparent 70%);
+}
+
+.warm-theme .pulsating-ring {
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, rgba(251, 146, 60, 0.05) 50%, transparent 70%);
+}
+
+.rainbow-theme .pulsating-ring {
+  background: conic-gradient(
+    from 0deg,
+    rgba(239, 68, 68, 0.1),
+    rgba(249, 115, 22, 0.1),
+    rgba(234, 179, 8, 0.1),
+    rgba(34, 197, 94, 0.1),
+    rgba(59, 130, 246, 0.1),
+    rgba(139, 92, 246, 0.1),
+    rgba(239, 68, 68, 0.1)
+  );
+}
+
+.monochrome-theme .pulsating-ring {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(200, 200, 200, 0.05) 50%, transparent 70%);
+}
+
+/* Ambient glow */
+.ambient-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+  animation: ambient-pulse 10s infinite alternate ease-in-out;
+}
+
+@keyframes ambient-pulse {
+  0% {
+    opacity: 0.3;
+    filter: blur(40px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: blur(50px);
+  }
+  100% {
+    opacity: 0.3;
+    filter: blur(40px);
+  }
+}
+
+/* Light burst effect */
+.light-burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  animation: light-burst 15s infinite alternate ease-in-out;
+}
+
+@keyframes light-burst {
+  0% {
+    width: 30%;
+    height: 30%;
+    opacity: 0.1;
+    filter: blur(20px);
+  }
+  50% {
+    width: 50%;
+    height: 50%;
+    opacity: 0.3;
+    filter: blur(30px);
+  }
+  100% {
+    width: 40%;
+    height: 40%;
+    opacity: 0.1;
+    filter: blur(20px);
+  }
+}
+
+/* Specific animation timing variations */
+.lightray-1, .lightray-7, .lightray-13, .lightray-19 { animation-duration: 10s; }
+.lightray-2, .lightray-8, .lightray-14, .lightray-20 { animation-duration: 12s; }
+.lightray-3, .lightray-9, .lightray-15 { animation-duration: 9s; }
+.lightray-4, .lightray-10, .lightray-16 { animation-duration: 11s; }
+.lightray-5, .lightray-11, .lightray-17 { animation-duration: 13s; }
+.lightray-6, .lightray-12, .lightray-18 { animation-duration: 8s; }
+
+.ring-1 { animation-duration: 10s; }
+.ring-2 { animation-duration: 15s; }
+.ring-3 { animation-duration: 20s; }
