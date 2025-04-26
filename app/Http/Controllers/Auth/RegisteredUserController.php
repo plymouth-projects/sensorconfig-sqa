@@ -34,12 +34,31 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'admin_key' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if ($value !== env('ADMIN_KEY') && $value !== env('SUPER_ADMIN_KEY')) {
+                        $fail('The admin key is invalid.');
+                    }
+                },
+            ],
         ]);
+
+        // Determine role based on admin key
+        $role = 'user';
+        
+        if ($request->admin_key === env('ADMIN_KEY')) {
+            $role = 'admin';
+        } elseif ($request->admin_key === env('SUPER_ADMIN_KEY')) {
+            $role = 'super_admin';
+        }
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => $role,
         ]);
 
         event(new Registered($user));
