@@ -105,21 +105,21 @@ export function AirQualityMap({ sensorData, loading = false, onSensorSelect }: A
           const aqiColor = getAqiColor(sensor.currentAqi);
           
           // Create a custom marker element
-          const markerElement = document.createElement('div');
-          markerElement.className = 'custom-marker';
-          markerElement.style.width = '40px';
-          markerElement.style.height = '40px';
-          markerElement.style.borderRadius = '50%';
-          markerElement.style.backgroundColor = aqiColor;
-          markerElement.style.border = '3px solid white';
-          markerElement.style.boxShadow = '0 0 8px rgba(0, 0, 0, 0.3)';
-          markerElement.style.display = 'flex';
-          markerElement.style.alignItems = 'center';
-          markerElement.style.justifyContent = 'center';
-          markerElement.style.color = 'white';
-          markerElement.style.fontWeight = 'bold';
-          markerElement.style.fontSize = '14px';
-          markerElement.textContent = `${sensor.currentAqi}`;
+          const sensorMarkerElement = document.createElement('div');
+          sensorMarkerElement.className = 'custom-marker';
+          sensorMarkerElement.style.width = '40px';
+          sensorMarkerElement.style.height = '40px';
+          sensorMarkerElement.style.borderRadius = '50%';
+          sensorMarkerElement.style.backgroundColor = aqiColor;
+          sensorMarkerElement.style.border = '3px solid white';
+          sensorMarkerElement.style.boxShadow = '0 0 8px rgba(0, 0, 0, 0.3)';
+          sensorMarkerElement.style.display = 'flex';
+          sensorMarkerElement.style.alignItems = 'center';
+          sensorMarkerElement.style.justifyContent = 'center';
+          sensorMarkerElement.style.color = 'white';
+          sensorMarkerElement.style.fontWeight = 'bold';
+          sensorMarkerElement.style.fontSize = '14px';
+          sensorMarkerElement.textContent = `${sensor.currentAqi}`;
           
           // Use a normal marker as fallback if Advanced Marker is not available
           let marker;
@@ -130,7 +130,7 @@ export function AirQualityMap({ sensorData, loading = false, onSensorSelect }: A
             marker = new window.google.maps.marker.AdvancedMarkerElement({
               map: googleMapRef.current,
               position: { lat: sensor.lat, lng: sensor.lng },
-              content: markerElement,
+              content: sensorMarkerElement,
               title: `${sensor.name}: AQI ${sensor.currentAqi}`,
             });
             
