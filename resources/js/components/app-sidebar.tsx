@@ -4,14 +4,24 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, Folder, Home, LayoutGrid, Wind } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
     {
+        title: 'Home',
+        href: '/',
+        icon: Home,
+    },
+    {
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Air Quality',
+        href: '/air-quality',
+        icon: Wind,
     },
 ];
 
@@ -20,11 +30,6 @@ const footerNavItems: NavItem[] = [
         title: 'Repository',
         href: 'https://github.com/laravel/react-starter-kit',
         icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits',
-        icon: BookOpen,
     },
 ];
 
