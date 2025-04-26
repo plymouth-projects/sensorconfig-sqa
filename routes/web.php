@@ -7,6 +7,11 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+// Public Air Quality Dashboard - No authentication required
+Route::get('/air-quality', function () {
+    return Inertia::render('public-dashboard');
+})->name('air-quality');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');

@@ -4,7 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, Wind } from "lucide-react";
 
 export default function Welcome() {
     const { auth } = usePage<SharedData>().props;
@@ -18,6 +18,16 @@ export default function Welcome() {
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
                 <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
                     <nav className="flex items-center justify-end gap-4">
+                        <Link
+                            href={route('air-quality')}
+                            className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-blue-600 hover:border-[#19140035] dark:text-blue-400 dark:hover:border-[#3E3E3A] mr-auto"
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <Wind className="h-4 w-4" />
+                                Air Quality Dashboard
+                            </span>
+                        </Link>
+                        
                         {auth.user ? (
                             <Link
                                 href={route('dashboard')}
