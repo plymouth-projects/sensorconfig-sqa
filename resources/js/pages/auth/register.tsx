@@ -14,6 +14,7 @@ type RegisterForm = {
     email: string;
     password: string;
     password_confirmation: string;
+    admin_key?: string;
 };
 
 export default function Register() {
@@ -22,12 +23,13 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        admin_key: '',
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('register'), {
-            onFinish: () => reset('password', 'password_confirmation'),
+            onFinish: () => reset('password', 'password_confirmation', 'admin_key'),
         });
     };
 
@@ -101,7 +103,22 @@ export default function Register() {
                         <InputError message={errors.password_confirmation} />
                     </div>
 
-                    <Button type="submit" className="mt-2 w-full" tabIndex={5} disabled={processing}>
+                    <div className="grid gap-2">
+                        <Label htmlFor="admin_key">Admin Key</Label>
+                        <Input
+                            id="admin_key"
+                            type="password"
+                            required
+                            tabIndex={5}
+                            value={data.admin_key}
+                            onChange={(e) => setData('admin_key', e.target.value)}
+                            disabled={processing}
+                            placeholder="Admin key"
+                        />
+                        <InputError message={errors.admin_key} />
+                    </div>
+
+                    <Button type="submit" className="mt-2 w-full" tabIndex={6} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                         Create account
                     </Button>
@@ -109,7 +126,7 @@ export default function Register() {
 
                 <div className="text-muted-foreground text-center text-sm">
                     Already have an account?{' '}
-                    <TextLink href={route('login')} tabIndex={6}>
+                    <TextLink href={route('login')} tabIndex={7}>
                         Log in
                     </TextLink>
                 </div>
