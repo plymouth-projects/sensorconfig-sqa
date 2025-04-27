@@ -4,6 +4,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
+import { ToastProvider } from '@/contexts/toast-context';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -22,3 +23,11 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+export default function App({ children }) {
+    return (
+        <ToastProvider>
+            {children}
+        </ToastProvider>
+    );
+}
