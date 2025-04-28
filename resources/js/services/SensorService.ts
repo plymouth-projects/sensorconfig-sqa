@@ -1,6 +1,15 @@
 import axios from 'axios';
 import { Sensor } from '@/types/sensor';
 
+// Interface for creating sensors that matches backend API expectations
+interface SensorCreateDTO {
+  name: string;
+  status: 'active' | 'inactive' | 'maintenance';
+  location: string;    // Backend expects location as a string
+  latitude: number;    // Backend expects latitude as a number
+  longitude: number;   // Backend expects longitude as a number
+}
+
 const API_URL = 'http://127.0.0.1:8000/api/sensors';
 
 export const SensorService = {
@@ -23,7 +32,7 @@ export const SensorService = {
   /**
    * Create a new sensor
    */
-  async createSensor(sensorData: Omit<Sensor, 'id' | 'createdAt' | 'updatedAt'>): Promise<Sensor> {
+  async createSensor(sensorData: SensorCreateDTO): Promise<Sensor> {
     const response = await axios.post(API_URL, sensorData);
     return response.data;
   },
@@ -96,4 +105,4 @@ export const SensorService = {
       throw error;
     }
   }
-}; 
+};

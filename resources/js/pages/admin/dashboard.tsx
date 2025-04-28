@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldCheck, MapPin, Activity, Bell, Users, Gauge } from 'lucide-react';
+import { ShieldCheck, MapPin, Activity, Bell, Users, Gauge, Play, Square } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function AdminDashboard({ role }: AdminProps) {
     const [systemStatus, setSystemStatus] = useState({
-        activeSensors: 12,
+        activeSensors: 0, // Initialize with 0 instead of hardcoded 12
         simulationStatus: 'stopped' as 'running' | 'stopped',
         alertsToday: 3,
     });
@@ -47,6 +47,15 @@ export default function AdminDashboard({ role }: AdminProps) {
 
     useEffect(() => {
         loadDashboardData();
+
+        // Re-check simulation status every 30 seconds
+        const statusInterval = setInterval(() => {
+            loadDashboardData();
+        }, 30000);
+
+        return () => {
+            clearInterval(statusInterval);
+        };
     }, []);
 
     const loadDashboardData = async () => {
@@ -67,30 +76,35 @@ export default function AdminDashboard({ role }: AdminProps) {
         }
     };
 
-    const handleSimulationToggle = async () => {
+    const handleStartSimulation = async () => {
         try {
             setLoading(true);
-            
-            if (systemStatus.simulationStatus === 'running') {
-                // Stop simulation
-                const response = await SystemService.stopSimulation();
-                setSystemStatus(prev => ({
-                    ...prev,
-                    simulationStatus: 'stopped'
-                }));
-                showAlert('Simulation Stopped', response.message);
-            } else {
-                // Start simulation
-                const response = await SystemService.startSimulation();
-                setSystemStatus(prev => ({
-                    ...prev,
-                    simulationStatus: 'running'
-                }));
-                showAlert('Simulation Started', response.message);
-            }
+            const response = await SystemService.startSimulation();
+            setSystemStatus(prev => ({
+                ...prev,
+                simulationStatus: 'running'
+            }));
+            showAlert('Simulation Started', response.message);
         } catch (error) {
-            console.error('Failed to toggle simulation:', error);
-            showAlert('Error', 'Failed to change simulation status');
+            console.error('Failed to start simulation:', error);
+            showAlert('Error', 'Failed to start simulation');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleStopSimulation = async () => {
+        try {
+            setLoading(true);
+            const response = await SystemService.stopSimulation();
+            setSystemStatus(prev => ({
+                ...prev,
+                simulationStatus: 'stopped'
+            }));
+            showAlert('Simulation Stopped', response.message);
+        } catch (error) {
+            console.error('Failed to stop simulation:', error);
+            showAlert('Error', 'Failed to stop simulation');
         } finally {
             setLoading(false);
         }
@@ -129,9 +143,12 @@ export default function AdminDashboard({ role }: AdminProps) {
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-muted-foreground text-sm">Simulation Status</span>
-                                <span className="text-green-500 font-medium">
-                                    {systemStatus.simulationStatus === 'running' ? 'Running' : 'Stopped'}
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                    <div className={`h-3 w-3 rounded-full ${systemStatus.simulationStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                                    <span className={`font-medium ${systemStatus.simulationStatus === 'running' ? 'text-green-500' : 'text-red-500'}`}>
+                                        {systemStatus.simulationStatus === 'running' ? 'Running' : 'Stopped'}
+                                    </span>
+                                </div>
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-muted-foreground text-sm">Alerts Today</span>
@@ -158,7 +175,7 @@ export default function AdminDashboard({ role }: AdminProps) {
                         <CardContent>
                             <div className="space-y-4">
                                 <p>Manage your network of air quality sensors across Colombo.</p>
-                                <div className="flex flex-col lg:flex-row gap-2">
+                                <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2">
                                     <Button className="w-full" asChild>
                                         <Link href="/admin/sensors/create">Register New Sensor</Link>
                                     </Button>
@@ -182,25 +199,47 @@ export default function AdminDashboard({ role }: AdminProps) {
                         <CardContent>
                             <div className="space-y-4">
                                 <p>Set parameters for data generation and control simulation status.</p>
-                                <div className="flex flex-col lg:flex-row gap-2">
+                                <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2">
                                     <Button className="w-full" asChild>
                                         <Link href="/admin/simulation/config">Configure Parameters</Link>
                                     </Button>
-                                    <Button 
-                                        className="w-full"
-                                        variant={systemStatus.simulationStatus === 'running' ? 'destructive' : 'default'}
-                                        onClick={handleSimulationToggle}
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                                Processing...
-                                            </>
-                                        ) : (
-                                            systemStatus.simulationStatus === 'running' ? 'Stop Simulation' : 'Start Simulation'
-                                        )}
-                                    </Button>
+                                    {systemStatus.simulationStatus === 'running' ? (
+                                        <Button 
+                                            className="w-full"
+                                            variant="destructive"
+                                            onClick={handleStopSimulation}
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                                    Processing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Square className="mr-2 h-4 w-4" /> Stop Simulation
+                                                </>
+                                            )}
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            className="w-full"
+                                            variant="default"
+                                            onClick={handleStartSimulation}
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                                    Processing...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Play className="mr-2 h-4 w-4" /> Start Simulation
+                                                </>
+                                            )}
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -218,7 +257,7 @@ export default function AdminDashboard({ role }: AdminProps) {
                         <CardContent>
                             <div className="space-y-4">
                                 <p>Define AQI thresholds for different alert categories and manage notifications.</p>
-                                <div className="flex flex-col lg:flex-row gap-2">
+                                <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2">
                                     <Button className="w-full" asChild>
                                         <Link href="/admin/alerts/thresholds">Set Thresholds</Link>
                                     </Button>
@@ -242,7 +281,7 @@ export default function AdminDashboard({ role }: AdminProps) {
                         <CardContent>
                             <div className="space-y-4">
                                 <p>Access detailed system status, logs, and performance metrics.</p>
-                                <div className="flex flex-col lg:flex-row gap-2">
+                                <div className="flex flex-col lg:flex-row lg:flex-wrap gap-2">
                                     <Button className="w-full" asChild>
                                         <Link href="/admin/system/dashboard">View Dashboard</Link>
                                     </Button>
@@ -298,4 +337,4 @@ export default function AdminDashboard({ role }: AdminProps) {
             </AlertDialog>
         </AppLayout>
     );
-} 
+}

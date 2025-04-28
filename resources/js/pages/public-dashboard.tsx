@@ -15,145 +15,129 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { InfoIcon, AlertTriangleIcon } from 'lucide-react'; 
 import { SensorLocation, HistoricalDataPoint } from '@/types/air-quality';
 import { AirQualityService } from '@/services/air-quality-service';
+import { SensorService } from '@/services/SensorService';
+import axios from 'axios';
 
-const initialSensors: SensorLocation[] = [
-  {
-    id: 1,
-    name: 'Colombo Fort',
-    lat: 6.9271,
-    lng: 79.8612,
-    currentAqi: 70,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 2,
-    name: 'Galle Face',
-    lat: 6.9293,
-    lng: 79.8431,
-    currentAqi: 60,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 3,
-    name: 'Bambalapitiya',
-    lat: 6.8912,
-    lng: 79.8562,
-    currentAqi: 85,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 4,
-    name: 'Kollupitiya',
-    lat: 6.9018,
-    lng: 79.8507,
-    currentAqi: 50,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 5,
-    name: 'Dehiwala',
-    lat: 6.8541,
-    lng: 79.8657,
-    currentAqi: 45,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 6,
-    name: 'Borella',
-    lat: 6.9146,
-    lng: 79.8782,
-    currentAqi: 95,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 7,
-    name: 'Wellawatte',
-    lat: 6.8790,
-    lng: 79.8594,
-    currentAqi: 55,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
-  },
-  {
-    id: 8,
-    name: 'Pettah',
-    lat: 6.9362,
-    lng: 79.8487,
-    currentAqi: 110,
-    mainPollutant: 'PM2.5',
-    temperature: 30,
-    humidity: 65,
-    windSpeed: 4.2,
-    lastUpdated: new Date().toISOString()
+// Add this function to fetch historical readings from the database
+const fetchHistoricalReadings = async (sensorId: number, timeRange: string): Promise<HistoricalDataPoint[]> => {
+  try {
+    // Define the time range in hours or days
+    let timeUnit = 'hours';
+    let timeValue = 24;
+    
+    if (timeRange === 'week') {
+      timeUnit = 'days';
+      timeValue = 7;
+    } else if (timeRange === 'month') {
+      timeUnit = 'days';
+      timeValue = 30;
+    }
+    
+    // Call API to get historical readings for this sensor
+    const response = await axios.get(`/api/sensors/${sensorId}/readings/historical`, {
+      params: { 
+        time_unit: timeUnit,
+        time_value: timeValue
+      }
+    });
+    
+    if (!response.data || !Array.isArray(response.data)) {
+      console.error('Invalid historical data format received:', response.data);
+      return [];
+    }
+    
+    // Transform API response to match HistoricalDataPoint format
+    return response.data.map((reading: any) => {
+      const timestamp = new Date(reading.timestamp);
+      let dataPoint: HistoricalDataPoint = {
+        aqi: reading.aqi,
+        pollutant: 'PM2.5' // Default pollutant since we don't have this in basic readings
+      };
+      
+      // Format date or time based on the time range
+      if (timeRange === 'day') {
+        dataPoint.time = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else {
+        dataPoint.date = timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      
+      return dataPoint;
+    });
+  } catch (error) {
+    console.error(`Error fetching historical data for sensor ${sensorId}:`, error);
+    return [];
   }
-];
+};
 
+// Function to transform database sensor readings to SensorLocation format needed by components
+const transformDatabaseSensor = (sensorData: any): SensorLocation => {
+  // Handle location properly whether it's an object or string
+  let lat = 0, lng = 0, locationAddress = '';
+  
+  if (sensorData.location && typeof sensorData.location === 'object') {
+    lat = sensorData.location.lat || 0;
+    lng = sensorData.location.lng || 0;
+    locationAddress = sensorData.location.address || '';
+  } else {
+    // If the sensor record has separate latitude/longitude fields
+    lat = sensorData.latitude || 0;
+    lng = sensorData.longitude || 0;
+    locationAddress = typeof sensorData.location === 'string' ? sensorData.location : 'Unknown location';
+  }
+  
+  // Extract the reading values or use defaults
+  const aqi = sensorData.lastReading?.aqi || 0;
+  const timestamp = sensorData.lastReading?.timestamp || new Date().toISOString();
+  
+  // Create a normalized SensorLocation object
+  return {
+    id: sensorData.id,
+    name: sensorData.name,
+    lat: lat,
+    lng: lng,
+    currentAqi: aqi,
+    mainPollutant: 'PM2.5', // Default since many sensors don't track this specifically
+    temperature: 30, // Default values when not available from DB
+    humidity: 65,
+    windSpeed: 4.2,
+    lastUpdated: timestamp
+  };
+};
+
+// Generate mock historical data as a fallback when no real data is available
 const generateMockHistoricalData = (timeRange: string, sensorId: number): HistoricalDataPoint[] => {
   const data: HistoricalDataPoint[] = [];
-  const selectedSensor = initialSensors.find(sensor => sensor.id === sensorId) || initialSensors[0];
+  const now = new Date();
+  // Base AQI on the sensor ID to get different values for different sensors
+  const baseAqi = 50 + (sensorId % 10) * 5;
   
-  // Calculate base AQI from current sensor data or use default
-  const currentAqi = selectedSensor.currentAqi || 50;
-  
-  // Get actual pollutant data if available from Google API
-  const hasRealData = selectedSensor.pollutantData && Object.keys(selectedSensor.pollutantData).length > 0;
-  
-  // Generate based on time range
   if (timeRange === 'day') {
     // Last 24 hours, hourly data
     for (let i = 0; i < 24; i++) {
       const hour = 23 - i;
       const hourFormatted = hour.toString().padStart(2, '0') + ':00';
       
-      // More realistic hourly pattern with:
-      // - Higher pollution in morning and evening rush hours (7-9am and 5-7pm)
-      // - Lower pollution in middle of night (1-4am)
-      let hourlyPattern = 1.0;
-      if (hour >= 7 && hour <= 9) hourlyPattern = 1.3; // Morning rush
-      else if (hour >= 17 && hour <= 19) hourlyPattern = 1.25; // Evening rush
-      else if (hour >= 1 && hour <= 4) hourlyPattern = 0.7; // Middle of night
-      else if (hour >= 11 && hour <= 14) hourlyPattern = 0.9; // Midday
+      // More realistic variations based on time of day
+      let variation = 0;
+      // Morning peak (7-9 AM)
+      if (hour >= 7 && hour <= 9) {
+        variation = 15 + Math.random() * 10;
+      } 
+      // Evening peak (5-8 PM)
+      else if (hour >= 17 && hour <= 20) {
+        variation = 20 + Math.random() * 10;
+      }
+      // Normal hours
+      else {
+        variation = Math.random() * 15;
+      }
       
-      // Base AQI that fluctuates based on current AQI and hourly pattern
-      const baseAqi = currentAqi * hourlyPattern;
-      const variation = Math.sin(hour / 6 * Math.PI) * (currentAqi * 0.15); // Sine wave pattern
-      const randomVariation = hasRealData ? (Math.random() * currentAqi * 0.1) : (Math.random() * 15);
-      const aqi = Math.max(20, Math.min(350, Math.round(baseAqi + variation + randomVariation)));
+      const aqi = Math.max(20, Math.min(300, Math.round(baseAqi + variation)));
       
       data.push({
         time: hourFormatted,
         aqi: aqi,
-        pollutant: selectedSensor.mainPollutant || 'PM2.5',
-        temperature: Math.round((selectedSensor.temperature || 30) + (Math.random() * 2 - 1)),
-        humidity: Math.round((selectedSensor.humidity || 65) + (Math.random() * 5 - 2.5)),
-        windSpeed: parseFloat(((selectedSensor.windSpeed || 4) + (Math.random() * 1.5 - 0.75)).toFixed(1))
+        pollutant: 'PM2.5'
       });
     }
   } else if (timeRange === 'week') {
@@ -167,19 +151,14 @@ const generateMockHistoricalData = (timeRange: string, sensorId: number): Histor
       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
       const dayPattern = isWeekend ? 0.85 : 1.1; // Less pollution on weekends
       
-      // Base AQI with more realistic variations based on current AQI and day of week
-      const baseAqi = currentAqi * dayPattern;
-      const variation = Math.sin(i / 7 * Math.PI * 2) * (currentAqi * 0.12); // Sinusoidal pattern
-      const randomVariation = hasRealData ? (Math.random() * currentAqi * 0.08) : (Math.random() * 12);
-      const aqi = Math.max(20, Math.min(350, Math.round(baseAqi + variation + randomVariation)));
+      const variation = Math.sin(i / 7 * Math.PI * 2) * (baseAqi * 0.12);
+      const randomVariation = Math.random() * baseAqi * 0.08;
+      const aqi = Math.max(20, Math.min(300, Math.round(baseAqi * dayPattern + variation + randomVariation)));
       
       data.push({
         date: dateStr,
         aqi: aqi,
-        pollutant: selectedSensor.mainPollutant || 'PM2.5',
-        temperature: Math.round((selectedSensor.temperature || 30) + (Math.random() * 4 - 2)),
-        humidity: Math.round((selectedSensor.humidity || 65) + (Math.random() * 10 - 5)),
-        windSpeed: parseFloat(((selectedSensor.windSpeed || 4) + (Math.random() * 3 - 1.5)).toFixed(1))
+        pollutant: 'PM2.5'
       });
     }
   } else { // month
@@ -190,26 +169,17 @@ const generateMockHistoricalData = (timeRange: string, sensorId: number): Histor
       const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       
       // Monthly pattern with weather influence
-      // - More pollution in middle of month (work time)
-      // - Slightly less at beginning/end (common vacation periods)
       const dayOfMonth = date.getDate();
-      let monthPattern = 1.0;
-      if (dayOfMonth > 7 && dayOfMonth < 22) monthPattern = 1.1;
-      else if (dayOfMonth < 5 || dayOfMonth > 25) monthPattern = 0.9;
+      const monthFactor = dayOfMonth < 10 ? 0.9 : (dayOfMonth > 20 ? 0.95 : 1.1);
       
-      // Base AQI with monthly pattern and seasonal influences
-      const baseAqi = currentAqi * monthPattern;
-      const seasonalFactor = 1 + (Math.sin(date.getMonth() / 6 * Math.PI) * 0.2); // Seasonal variations
-      const randomVariation = hasRealData ? (Math.random() * currentAqi * 0.06) : (Math.random() * 15);
-      const aqi = Math.max(20, Math.min(350, Math.round(baseAqi * seasonalFactor + randomVariation)));
+      const variation = Math.sin(i / 10 * Math.PI * 2) * (baseAqi * 0.15);
+      const randomVariation = Math.random() * baseAqi * 0.1;
+      const aqi = Math.max(20, Math.min(300, Math.round(baseAqi * monthFactor + variation + randomVariation)));
       
       data.push({
         date: dateStr,
         aqi: aqi,
-        pollutant: selectedSensor.mainPollutant || 'PM2.5',
-        temperature: Math.round((selectedSensor.temperature || 30) + (Math.random() * 6 - 3)),
-        humidity: Math.round((selectedSensor.humidity || 65) + (Math.random() * 15 - 7.5)),
-        windSpeed: parseFloat(((selectedSensor.windSpeed || 4) + (Math.random() * 4 - 2)).toFixed(1))
+        pollutant: 'PM2.5'
       });
     }
   }
@@ -218,13 +188,15 @@ const generateMockHistoricalData = (timeRange: string, sensorId: number): Histor
 };
 
 export default function Dashboard() {
-  const [sensors, setSensors] = useState<SensorLocation[]>(initialSensors);
+  const [sensors, setSensors] = useState<SensorLocation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSensorId, setSelectedSensorId] = useState<number>(1);
+  const [selectedSensorId, setSelectedSensorId] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<string>('day');
   const [usingRealData, setUsingRealData] = useState<boolean>(true);
   const [mapLoadingStarted, setMapLoadingStarted] = useState<boolean>(false);
+  const [historicalData, setHistoricalData] = useState<HistoricalDataPoint[]>([]);
+  const [historicalDataLoading, setHistoricalDataLoading] = useState(false);
   
   // Preload Google Maps API as soon as the component mounts
   useEffect(() => {
@@ -238,52 +210,91 @@ export default function Dashboard() {
       });
     }
     
-    // Fetch air quality data when component mounts
-    fetchAirQualityData();
+    // Fetch sensors from database when component mounts
+    fetchSensorsFromDatabase();
     
     // Set up interval to refresh data every 5 minutes
-    const intervalId = setInterval(fetchAirQualityData, 5 * 60 * 1000);
+    const intervalId = setInterval(fetchSensorsFromDatabase, 5 * 60 * 1000);
     
     // Clear interval when component unmounts
     return () => clearInterval(intervalId);
   }, []);
   
-  const fetchAirQualityData = async () => {
+  useEffect(() => {
+    if (selectedSensorId) {
+      loadHistoricalData(selectedSensorId, timeRange);
+    }
+  }, [selectedSensorId, timeRange]);
+
+  // Fetch sensors from database
+  const fetchSensorsFromDatabase = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Map through each sensor and fetch updated data
-      const updatedSensors = await Promise.all(
-        sensors.map(async (sensor) => {
-          try {
-            return await AirQualityService.fetchSensorData(sensor);
-          } catch (err) {
-            console.error(`Error fetching data for sensor ${sensor.name}:`, err);
-            // Return the original sensor but mark we're using simulated data
-            setUsingRealData(false);
-            return AirQualityService.generateSimulatedSensorData(sensor);
-          }
-        })
-      );
+      // Get all sensors from database using SensorService
+      const latestReadingsData = await SensorService.getLatestReadings();
       
-      setSensors(updatedSensors);
+      if (latestReadingsData && Array.isArray(latestReadingsData) && latestReadingsData.length > 0) {
+        // Transform the database sensor format to SensorLocation format for our components
+        const transformedSensors = latestReadingsData.map(item => {
+          const sensorLocation: SensorLocation = {
+            id: item.sensor_id,
+            name: item.sensor_name,
+            lat: item.sensor_location.lat,
+            lng: item.sensor_location.lng,
+            currentAqi: item.reading ? item.reading.aqi : 0,
+            mainPollutant: 'PM2.5', // Default since we don't have this info
+            temperature: 30, // Default values
+            humidity: 65,
+            windSpeed: 4.2,
+            lastUpdated: item.reading ? item.reading.timestamp : new Date().toISOString()
+          };
+          return sensorLocation;
+        });
+        
+        setSensors(transformedSensors);
+        setUsingRealData(true);
+        
+        // Set default selected sensor if none is selected yet
+        if (!selectedSensorId && transformedSensors.length > 0) {
+          setSelectedSensorId(transformedSensors[0].id);
+        }
+      } else {
+        throw new Error('No sensor data received from the database');
+      }
     } catch (err) {
-      console.error('Error updating air quality data:', err);
-      setError('Unable to fetch the latest air quality data. Using simulated data instead.');
-      // Generate simulated data for all sensors
-      const simulatedSensors = sensors.map(sensor => 
-        AirQualityService.generateSimulatedSensorData(sensor)
-      );
-      setSensors(simulatedSensors);
+      console.error('Error fetching sensors from database:', err);
+      setError('Unable to fetch sensors from the database. Ensure the database contains sensor data.');
       setUsingRealData(false);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadHistoricalData = async (sensorId: number, range: string) => {
+    setHistoricalDataLoading(true);
+    try {
+      const data = await fetchHistoricalReadings(sensorId, range);
+      if (data.length > 0) {
+        setHistoricalData(data);
+      } else {
+        // Fallback to simulated data if no historical data is available
+        setHistoricalData(generateMockHistoricalData(range, sensorId));
+      }
+    } catch (err) {
+      console.error('Error loading historical data:', err);
+      // Fallback to simulated data
+      setHistoricalData(generateMockHistoricalData(range, sensorId));
+    } finally {
+      setHistoricalDataLoading(false);
+    }
+  };
   
   // Get the currently selected sensor
-  const selectedSensor = sensors.find(sensor => sensor.id === selectedSensorId) || sensors[0];
+  const selectedSensor = selectedSensorId 
+    ? sensors.find(sensor => sensor.id === selectedSensorId) 
+    : sensors.length > 0 ? sensors[0] : null;
 
   return (
     <>
@@ -313,82 +324,113 @@ export default function Dashboard() {
             </Alert>
           )}
           
-          <div className="grid gap-6 md:grid-cols-12">
-            {/* Map */}
-            <Card className="md:col-span-12 lg:col-span-8 overflow-hidden">
-              <CardHeader className="p-4">
-                <CardTitle>Air Quality Map</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <AirQualityMap 
-                  sensorData={sensors} 
-                  loading={loading}
-                  onSensorSelect={setSelectedSensorId}
-                />
-              </CardContent>
-            </Card>
-            
-            {/* Stats */}
-            <Card className="md:col-span-12 lg:col-span-4">
-              <CardHeader className="p-4">
-                <CardTitle>{selectedSensor.name} - Current Conditions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AirQualityStats sensor={selectedSensor} loading={loading} />
-              </CardContent>
-            </Card>
-            
-            {/* Legend */}
-            <Card className="md:col-span-12 lg:col-span-4">
-              <CardHeader className="p-4">
-                <CardTitle>Air Quality Legend</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AqiLegend />
-              </CardContent>
-            </Card>
-            
-            {/* Sensor Cards - Top 3 Sensors by AQI */}
-            <div className="md:col-span-12 lg:col-span-8 grid gap-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-1">
-              {sensors
-                .sort((a, b) => b.currentAqi - a.currentAqi)
-                .slice(0, 3)
-                .map((sensor) => (
-                  <SensorCard 
-                    key={sensor.id}
-                    sensor={sensor}
-                    onClick={() => setSelectedSensorId(sensor.id)}
-                    isSelected={sensor.id === selectedSensorId}
-                  />
-                ))
-              }
+          {loading ? (
+            <div className="grid gap-6 md:grid-cols-12">
+              <Card className="md:col-span-12 lg:col-span-8 h-96">
+                <CardHeader className="p-4">
+                  <CardTitle>Loading Air Quality Map...</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center h-64">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                </CardContent>
+              </Card>
             </div>
-            
-            {/* Charts */}
-            <Card className="md:col-span-12">
-              <CardHeader className="p-4">
-                <CardTitle>Historical Data</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                {/* Add the HistoricalDataSection component */}
-                <HistoricalDataSection 
-                  selectedSensor={selectedSensorId}
-                  timeRange={timeRange}
-                  historicalData={generateMockHistoricalData(timeRange, selectedSensorId)}
-                  sensorData={sensors}
-                  onSensorSelect={setSelectedSensorId}
-                  onTimeRangeChange={(range) => {
-                    setTimeRange(range);
-                  }}
-                />
-                
-                <div className="mt-4 text-xs text-muted-foreground">
-                  <InfoIcon className="inline h-3 w-3 mr-1" />
-                  Historical data charts are simulated for demonstration purposes.
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          ) : sensors.length === 0 ? (
+            <Alert variant="destructive" className="mb-6">
+              <AlertTriangleIcon className="h-4 w-4" />
+              <AlertTitle>No Sensors Found</AlertTitle>
+              <AlertDescription>
+                No air quality sensors found in the database. Please add sensors through the admin panel.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-12">
+              {/* Map */}
+              <Card className="md:col-span-12 lg:col-span-8 overflow-hidden">
+                <CardHeader className="p-4">
+                  <CardTitle>Air Quality Map</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <AirQualityMap 
+                    sensorData={sensors} 
+                    loading={loading}
+                    onSensorSelect={setSelectedSensorId}
+                  />
+                </CardContent>
+              </Card>
+              
+              {/* Stats */}
+              {selectedSensor && (
+                <Card className="md:col-span-12 lg:col-span-4">
+                  <CardHeader className="p-4">
+                    <CardTitle>{selectedSensor.name} - Current Conditions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <AirQualityStats sensor={selectedSensor} loading={loading} />
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Legend */}
+              <Card className="md:col-span-12 lg:col-span-4">
+                <CardHeader className="p-4">
+                  <CardTitle>Air Quality Legend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AqiLegend />
+                </CardContent>
+              </Card>
+              
+              {/* Sensor Cards - Top 3 Sensors by AQI */}
+              <div className="md:col-span-12 lg:col-span-8 grid gap-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-1">
+                {sensors
+                  .sort((a, b) => b.currentAqi - a.currentAqi)
+                  .slice(0, 3)
+                  .map((sensor) => (
+                    <SensorCard 
+                      key={sensor.id}
+                      sensor={sensor}
+                      onClick={() => setSelectedSensorId(sensor.id)}
+                      isSelected={sensor.id === selectedSensorId}
+                    />
+                  ))
+                }
+              </div>
+              
+              {/* Historical Charts */}
+              <Card className="md:col-span-12">
+                <CardHeader className="p-4">
+                  <CardTitle>Historical Data</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4">
+                  {selectedSensor ? (
+                    <HistoricalDataSection 
+                      selectedSensor={selectedSensorId || 0}
+                      timeRange={timeRange}
+                      historicalData={historicalData}
+                      sensorData={sensors}
+                      onSensorSelect={setSelectedSensorId}
+                      onTimeRangeChange={(range) => {
+                        setTimeRange(range);
+                      }}
+                      loading={historicalDataLoading}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <p>No sensor data available for historical charts</p>
+                    </div>
+                  )}
+                  
+                  <div className="mt-4 text-xs text-muted-foreground">
+                    <InfoIcon className="inline h-3 w-3 mr-1" />
+                    {historicalData.length === 0 
+                      ? "Historical data charts are simulated for demonstration purposes."
+                      : "Historical data charts are based on actual sensor readings from the database."}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
     </>
