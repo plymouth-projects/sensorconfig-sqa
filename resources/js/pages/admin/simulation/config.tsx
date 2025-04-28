@@ -11,7 +11,6 @@ import { Slider } from '@/components/ui/slider';
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -153,7 +152,22 @@ export default function SimulationConfig() {
   const handleSaveConfig = async () => {
     try {
       setSaving(true);
-      await SimulationService.updateSimulationConfig(config);
+      
+      // Create a complete configuration object to ensure all data is saved to the database
+      const configToSave = {
+        isActive: config.isActive,
+        frequency: config.frequency,
+        baselineAqi: config.baselineAqi,
+        variationRange: config.variationRange,
+        patterns: config.patterns
+      };
+      
+      // Send the complete configuration to the database
+      const updatedConfig = await SimulationService.updateSimulationConfig(configToSave);
+      
+      // Update local state with the response from the server
+      setConfig(updatedConfig);
+      
       showAlert('Success', 'Simulation configuration saved successfully');
     } catch (error) {
       console.error('Failed to save simulation config:', error);
@@ -620,4 +634,4 @@ export default function SimulationConfig() {
       </div>
     </AppLayout>
   );
-} 
+}

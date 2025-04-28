@@ -10,7 +10,7 @@ import {
   TooltipTrigger 
 } from '@/components/ui/tooltip';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Clock, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Clock, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { HistoricalDataPoint, SensorLocation } from '@/types/air-quality';
 
 interface HistoricalDataSectionProps {
@@ -20,6 +20,7 @@ interface HistoricalDataSectionProps {
   sensorData: SensorLocation[];
   onSensorSelect: (sensorId: number) => void;
   onTimeRangeChange: (range: string) => void;
+  loading?: boolean; // Add loading prop which is optional
 }
 
 /**
@@ -31,7 +32,8 @@ export const HistoricalDataSection: React.FC<HistoricalDataSectionProps> = ({
   historicalData,
   sensorData,
   onSensorSelect,
-  onTimeRangeChange
+  onTimeRangeChange,
+  loading = false // Default to false if not provided
 }) => {
   return (
     <Card className="mt-6">
@@ -53,6 +55,7 @@ export const HistoricalDataSection: React.FC<HistoricalDataSectionProps> = ({
             <Select
               value={selectedSensor?.toString() || ''}
               onValueChange={(value) => onSensorSelect(parseInt(value))}
+              disabled={loading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a location" />
@@ -74,16 +77,26 @@ export const HistoricalDataSection: React.FC<HistoricalDataSectionProps> = ({
               </label>
               <Tabs value={timeRange} onValueChange={onTimeRangeChange} className="w-full">
                 <TabsList className="grid grid-cols-3">
-                  <TabsTrigger value="day">Last 24 Hours</TabsTrigger>
-                  <TabsTrigger value="week">Last Week</TabsTrigger>
-                  <TabsTrigger value="month">Last Month</TabsTrigger>
+                  <TabsTrigger value="day" disabled={loading}>Last 24 Hours</TabsTrigger>
+                  <TabsTrigger value="week" disabled={loading}>Last Week</TabsTrigger>
+                  <TabsTrigger value="month" disabled={loading}>Last Month</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
           )}
         </div>
         
-        {selectedSensor ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-80 bg-muted/20 rounded-lg mt-6">
+            <div className="text-center">
+              <Loader2 className="mx-auto text-primary h-10 w-10 mb-2 animate-spin" />
+              <h3 className="text-lg font-medium">Loading Data</h3>
+              <p className="text-muted-foreground max-w-xs mx-auto mt-1">
+                Retrieving historical data for the selected sensor...
+              </p>
+            </div>
+          </div>
+        ) : selectedSensor ? (
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-2">
               {sensorData.find(s => s.id === selectedSensor)?.name} - Historical AQI Data
@@ -123,7 +136,7 @@ export const HistoricalDataSection: React.FC<HistoricalDataSectionProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="secondary" size="sm">
+                    <Button variant="secondary" size="sm" disabled={loading}>
                       <Clock className="mr-2 h-4 w-4" />
                       Download Data
                     </Button>

@@ -15,8 +15,10 @@ class SystemController extends Controller
     {
         $activeSensors = Sensor::where('status', 'active')->count();
         $alertsToday = 0; // Implement as needed
-        $config = SimulationConfig::first();
-        $simulationStatus = $config && $config->is_active ? 'running' : 'stopped';
+        
+        // Get simulation status from the SimulationService which uses cache
+        $simulationStatus = \App\Services\SimulationService::isRunning() ? 'running' : 'stopped';
+        
         $lastReading = Reading::latest('timestamp')->first();
         
         return response()->json([
@@ -112,4 +114,4 @@ class SystemController extends Controller
         $options = $messages[$level] ?? $messages['info'];
         return $options[array_rand($options)];
     }
-} 
+}

@@ -116,20 +116,55 @@ Route::get('/api/sensors', [SensorController::class, 'index']);
 Route::post('/api/sensors', [SensorController::class, 'store']);
 Route::get('/api/sensors/readings/latest', [SensorController::class, 'getLastReadings']);
 Route::get('/api/sensors/{id}/readings/latest', [SensorController::class, 'getSensorLastReading']);
+Route::post('/api/sensors/{id}/readings', [SensorController::class, 'storeReading']);
 Route::get('/api/sensors/{id}', [SensorController::class, 'show']);
 Route::put('/api/sensors/{id}', [SensorController::class, 'update']);
 Route::delete('/api/sensors/{id}', [SensorController::class, 'destroy']);
 Route::patch('/api/sensors/{id}/activate', [SensorController::class, 'activate']);
 Route::patch('/api/sensors/{id}/deactivate', [SensorController::class, 'deactivate']);
 
+// Direct API routes for system
+Route::get('/api/system/status', [\App\Http\Controllers\API\SystemController::class, 'getStatus']);
+Route::get('/api/system/metrics', [\App\Http\Controllers\API\SystemController::class, 'getMetrics']);
+Route::get('/api/system/logs', [\App\Http\Controllers\API\SystemController::class, 'getLogs']);
+Route::post('/api/system/maintenance', [\App\Http\Controllers\API\SystemController::class, 'performMaintenance']);
+Route::post('/api/system/restart', [\App\Http\Controllers\API\SystemController::class, 'restartService']);
+
 // Direct API routes for simulation
 Route::get('/api/simulation', [SimulationController::class, 'index']);
 Route::put('/api/simulation', [SimulationController::class, 'update']);
+Route::get('/api/simulation/config', [SimulationController::class, 'getConfig']);
+Route::put('/api/simulation/config', [SimulationController::class, 'updateConfig']);
 Route::post('/api/simulation/start', [SimulationController::class, 'start']);
 Route::post('/api/simulation/stop', [SimulationController::class, 'stop']);
 Route::get('/api/simulation/status', [SimulationController::class, 'status']);
 Route::post('/api/simulation/patterns', [SimulationController::class, 'addPattern']);
 Route::delete('/api/simulation/patterns/{type}', [SimulationController::class, 'removePattern']);
+
+// Test route for manually triggering reading generation
+Route::get('/api/simulation/generate-test', function() {
+    if (App\Services\SimulationService::isRunning()) {
+        $count = App\Services\SimulationService::generateReadings();
+        return response()->json([
+            'status' => 'success',
+            'message' => "Generated readings for $count sensors",
+        ]);
+    } else {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Simulation is not running. Start the simulation first.',
+        ]);
+    }
+});
+
+// API Fallback route for debugging
+Route::fallback(function () {
+    if (request()->is('api/*')) {
+        return response()->json([
+            'message' => 'Route not found.'
+        ], 404);
+    }
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

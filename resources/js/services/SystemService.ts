@@ -14,10 +14,10 @@ const getStoredSimulationStatus = (): 'running' | 'stopped' => {
   }
 };
 
-// Mock data for system dashboard since API endpoints don't exist yet
+// Mock data for system dashboard since API endpoints don't exist yet 
 const MOCK_SYSTEM_STATUS: SystemStatus = {
   systemHealth: 'healthy',
-  activeSensors: 24,
+  activeSensors: 6,  // Updated from 24 to 6 to match actual DB count
   simulationStatus: getStoredSimulationStatus(),
   alertsToday: 3,
   lastDataUpdate: new Date().toISOString(),
@@ -32,39 +32,25 @@ const MOCK_SENSORS = Array(MOCK_SYSTEM_STATUS.activeSensors).fill(0).map((_, i) 
   location: `Location ${i + 1}`,
   lastReading: {
     timestamp: new Date().toISOString(),
-    aqi: Math.floor(20 + Math.random() * 150),
-    pm25: Math.floor(10 + Math.random() * 40),
-    pm10: Math.floor(20 + Math.random() * 60)
+    aqi: 50, // Use a fixed default value instead of random generation
+    pm25: 20, // Use a fixed default value instead of random generation
+    pm10: 30  // Use a fixed default value instead of random generation
   }
 }));
 
-// Simulation interval in milliseconds (30 minutes)
-const SIMULATION_INTERVAL = 30 * 60 * 1000;
-
-// For demo purposes, we'll use a shorter interval
-const DEMO_SIMULATION_INTERVAL = 60 * 1000; // 1 minute for demonstration
-
+// Simulation interval is now managed by SimulationService.ts
+// We don't need separate intervals here
 let simulationTimer: number | null = null;
 
-// Function to generate new AQI readings for sensors
+// This function just updates the timestamps, but no longer generates AQI readings
+// Actual AQI generation will be handled only by SimulationService.ts
 const generateSensorReadings = () => {
-  console.log('Generating new sensor readings...');
+  console.log('SystemService: Updating sensor timestamps only...');
   const currentTime = new Date().toISOString();
   
-  // Update each sensor with new readings
+  // Only update timestamps, not the actual readings
   MOCK_SENSORS.forEach(sensor => {
-    // Generate random but somewhat realistic AQI values
-    const baseAqi = sensor.lastReading.aqi;
-    // AQI changes by ±20 max to simulate realistic changes
-    const newAqi = Math.max(0, Math.min(500, baseAqi + (Math.random() * 40 - 20)));
-    
-    // Update last reading
-    sensor.lastReading = {
-      timestamp: currentTime,
-      aqi: Math.floor(newAqi),
-      pm25: Math.floor(newAqi * 0.4 + Math.random() * 5),
-      pm10: Math.floor(newAqi * 0.6 + Math.random() * 10)
-    };
+    sensor.lastReading.timestamp = currentTime;
   });
   
   // Update system status
@@ -76,36 +62,27 @@ const generateSensorReadings = () => {
   return MOCK_SENSORS;
 };
 
-// Start or stop the simulation based on the status
+// Start or stop the simulation based on the status, but don't set intervals
+// Let SimulationService handle the timing according to configuration
 const updateSimulationState = (status: 'running' | 'stopped') => {
   if (status === 'running') {
-    // Start simulation if it's not already running
-    if (!simulationTimer) {
-      // Generate initial readings
-      generateSensorReadings();
-      
-      // Set up interval for future updates
-      simulationTimer = window.setInterval(() => {
-        generateSensorReadings();
-        // Here in a real app, we would also update UI or notify subscribers
-        console.log('Simulation cycle complete');
-      }, DEMO_SIMULATION_INTERVAL);
-      
-      console.log('Simulation started with interval:', DEMO_SIMULATION_INTERVAL);
-    }
+    // Just update timestamps once when starting, 
+    // but don't set an interval, let SimulationService handle that
+    generateSensorReadings();
+    console.log('SystemService: Simulation marked as running. Actual timing managed by SimulationService.');
   } else {
-    // Stop simulation if it's running
+    // Stop any legacy timer if it exists (cleanup only)
     if (simulationTimer) {
       window.clearInterval(simulationTimer);
       simulationTimer = null;
-      console.log('Simulation stopped');
+      console.log('SystemService: Simulation stopped');
     }
   }
 };
 
 // Initial setup - check if simulation should be running
 if (MOCK_SYSTEM_STATUS.simulationStatus === 'running') {
-  // Start simulation on load if status is running
+  // Mark simulation as running, but don't start a timer
   updateSimulationState('running');
 }
 
@@ -167,8 +144,51 @@ export const SystemService = {
    * Get current system status
    */
   async getSystemStatus(): Promise<SystemStatus> {
-    const response = await axios.get(`${API_URL}/status`);
-    return response.data;
+    try {
+      // Make an explicit call to the backend API endpoint
+      const response = await axios.get(`${API_URL}/status`);
+      
+      // Check if we received a valid response with activeSensors
+      if (response.data && typeof response.data.activeSensors === 'number') {
+        // Get simulation status from the server rather than just from localStorage
+        const serverSimulationStatus = response.data.simulationStatus || 'stopped';
+        
+        // Update the localStorage status to match the server
+        if (serverSimulationStatus !== getStoredSimulationStatus()) {
+          saveSimulationStatus(serverSimulationStatus);
+        }
+        
+        // Update the mock state with the real data from database
+        MOCK_SYSTEM_STATUS.activeSensors = response.data.activeSensors;
+        
+        // Return the complete system status with real-time database values
+        return {
+          systemHealth: response.data.systemHealth || 'healthy',
+          activeSensors: response.data.activeSensors,
+          simulationStatus: serverSimulationStatus,
+          alertsToday: response.data.alertsToday || 0,
+          lastDataUpdate: response.data.lastDataUpdate || new Date().toISOString(),
+          memoryUsage: response.data.memoryUsage || 42,
+          cpuLoad: response.data.cpuLoad || 28
+        };
+      } else {
+        console.warn('API response missing activeSensors value, using mock data');
+        const storedStatus = getStoredSimulationStatus();
+        return {
+          ...MOCK_SYSTEM_STATUS,
+          simulationStatus: storedStatus
+        };
+      }
+    } catch (error) {
+      console.error('Error getting system status from API:', error);
+      
+      // If API fails, return mock data with the correct simulation status
+      const storedStatus = getStoredSimulationStatus();
+      return {
+        ...MOCK_SYSTEM_STATUS,
+        simulationStatus: storedStatus
+      };
+    }
   },
 
   /**
@@ -222,16 +242,42 @@ export const SystemService = {
    * Stop simulation service
    */
   async stopSimulation(): Promise<{ status: string; message: string }> {
-    const response = await axios.post(`/api/simulation/stop`);
-    return response.data;
+    try {
+      const response = await axios.post(`/api/simulation/stop`);
+      
+      // Set status to stopped in localStorage
+      MOCK_SYSTEM_STATUS.simulationStatus = 'stopped';
+      saveSimulationStatus('stopped');
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error stopping simulation:', error);
+      return {
+        status: 'error',
+        message: 'Failed to stop simulation service'
+      };
+    }
   },
 
   /**
    * Start simulation service
    */
   async startSimulation(): Promise<{ status: string; message: string }> {
-    const response = await axios.post(`/api/simulation/start`);
-    return response.data;
+    try {
+      const response = await axios.post(`/api/simulation/start`);
+      
+      // Set status to running in localStorage
+      MOCK_SYSTEM_STATUS.simulationStatus = 'running';
+      saveSimulationStatus('running');
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error starting simulation:', error);
+      return {
+        status: 'error',
+        message: 'Failed to start simulation service'
+      };
+    }
   },
 
   /**
@@ -277,4 +323,4 @@ export const SystemService = {
       }, 500);
     });
   }
-}; 
+};

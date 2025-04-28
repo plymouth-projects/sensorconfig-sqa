@@ -4,7 +4,9 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sensor;
+use App\Models\Reading;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SensorController extends Controller
 {
@@ -189,4 +191,77 @@ class SensorController extends Controller
             ]
         ]);
     }
-} 
+
+    /**
+     * Store a new reading for a specific sensor.
+     */
+    public function storeReading(Request $request, $id)
+    {
+        // Find the sensor
+        $sensor = Sensor::findOrFail($id);
+        
+        // Validate input with more flexible timestamp handling
+        $validated = $request->validate([
+            'timestamp' => 'required|string', // Allow string format ISO8601 timestamps
+            'aqi' => 'required|numeric|min:0|max:500',
+            'pm25' => 'required|numeric|min:0',
+            'pm10' => 'required|numeric|min:0',
+        ]);
+        
+        // Log the received data for debugging
+        Log::info('Received sensor reading data:', [
+            'sensor_id' => $id,
+            'request_data' => $request->all()
+        ]);
+        
+        // Convert timestamp to proper format if it's a string
+        if (is_string($validated['timestamp'])) {
+            try {
+                $validated['timestamp'] = date('Y-m-d H:i:s', strtotime($validated['timestamp']));
+            } catch (\Exception $e) {
+                Log::error('Failed to parse timestamp: ' . $validated['timestamp'], ['error' => $e->getMessage()]);
+                return response()->json([
+                    'message' => 'Invalid timestamp format',
+                    'errors' => ['timestamp' => 'The timestamp could not be parsed']
+                ], 422);
+            }
+        }
+        
+        // Add sensor_id to the validated data
+        $validated['sensor_id'] = $sensor->id;
+        
+        // Create the reading
+        $reading = Reading::create($validated);
+        
+        return response()->json([
+            'message' => 'Reading stored successfully',
+            'reading_id' => $reading->id,
+            'sensor_id' => $sensor->id,
+        ], 201);
+    }
+
+    /**
+     * Get historical readings for a specific sensor.
+     */
+    public function getHistoricalReadings(Request $request, $id)
+    {
+        // Find the sensor
+        $sensor = Sensor::findOrFail($id);
+        
+        // Get query parameters
+        $timeUnit = $request->query('time_unit', 'hours');
+        $timeValue = (int) $request->query('time_value', 24);
+        
+        // Calculate the timestamp to filter from
+        $fromTimestamp = now()->sub($timeUnit, $timeValue);
+        
+        // Query readings for this sensor since the calculated timestamp
+        $readings = Reading::where('sensor_id', $sensor->id)
+                          ->where('timestamp', '>=', $fromTimestamp)
+                          ->orderBy('timestamp', 'asc')
+                          ->get();
+        
+        // Return the readings
+        return response()->json($readings);
+    }
+}
