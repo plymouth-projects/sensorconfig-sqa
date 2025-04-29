@@ -20,14 +20,12 @@ Route::middleware(['auth', 'verified'])->get('dashboard', function () {
     if (auth()->user()->role === 'admin') {
         return redirect()->route('admin.dashboard');
     } elseif (auth()->user()->role === 'super_admin') {
-        return redirect()->route('admin.super');
+        return redirect()->route('superadmin.dashboard');
     }
     
     // Redirect regular users to home
     return redirect()->route('home')->with('error', 'You need admin privileges to access the dashboard.');
 })->name('dashboard');
-
-Route::get('/sample', [SampleController::class, 'index']);
 
 // Admin routes
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -105,7 +103,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('admin.reports');
     
     // Super admin dashboard - only accessible by super_admin
-    Route::get('/admin/super', [AdminController::class, 'superAdminDashboard'])->name('admin.super');
+    Route::get('/superadmin/dashboard', [AdminController::class, 'superAdminDashboard'])->name('superadmin.dashboard');
 });
 
 // This is a test route for sensors
@@ -164,6 +162,51 @@ Route::fallback(function () {
             'message' => 'Route not found.'
         ], 404);
     }
+});
+
+// Super Admin Routes
+// Routes protected by auth, verified, and super_admin role middleware
+Route::middleware(['auth', 'verified', 'role:super_admin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    // User Management
+    Route::get('users', [AdminController::class, 'user'])->name('users');
+    Route::get('users/create', [AdminController::class, 'createUser'])->name('users.create');
+    Route::post('users', [AdminController::class, 'storeUser'])->name('users.store');
+    Route::delete('users/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
+    
+    // System Configuration
+    Route::get('system/database', [AdminController::class, 'databaseSettings'])->name('system.database');
+    Route::get('system/env', [AdminController::class, 'envSettings'])->name('system.env');
+    
+    // Security Setup
+    Route::get('security/permissions', [AdminController::class, 'permissions'])->name('security.permissions');
+    Route::get('security/settings', [AdminController::class, 'securitySettings'])->name('security.settings');
+    Route::put('security/settings', [AdminController::class, 'updateSecuritySettings'])->name('security.settings.update');
+});
+
+// Super Admin API Routes - These are separate from the web routes
+Route::middleware(['auth:sanctum', 'role:super_admin'])->prefix('api/super-admin')->group(function () {
+    // User Management
+    Route::get('/users', [App\Http\Controllers\API\SuperAdminController::class, 'getAllUsers']);
+    Route::get('/users/{id}', [App\Http\Controllers\API\SuperAdminController::class, 'getUserById']);
+    Route::post('/users', [App\Http\Controllers\API\SuperAdminController::class, 'createUser']);
+    Route::put('/users/{id}', [App\Http\Controllers\API\SuperAdminController::class, 'updateUser']);
+    Route::delete('/users/{id}', [App\Http\Controllers\API\SuperAdminController::class, 'deleteUser']);
+    Route::patch('/users/{id}/password', [App\Http\Controllers\API\SuperAdminController::class, 'changeUserPassword']);
+    Route::patch('/users/{id}/roles', [App\Http\Controllers\API\SuperAdminController::class, 'assignRoles']);
+    Route::patch('/users/{id}/permissions', [App\Http\Controllers\API\SuperAdminController::class, 'updatePermissions']);
+
+    // System Management
+    Route::get('/stats', [App\Http\Controllers\API\SuperAdminController::class, 'getSystemStats']);
+    Route::get('/settings', [App\Http\Controllers\API\SuperAdminController::class, 'getSystemSettings']);
+    Route::put('/settings', [App\Http\Controllers\API\SuperAdminController::class, 'updateSystemSettings']);
+    Route::get('/logs', [App\Http\Controllers\API\SuperAdminController::class, 'getActivityLogs']);
+    
+    // Backup & Maintenance
+    Route::post('/backup', [App\Http\Controllers\API\SuperAdminController::class, 'createBackup']);
+    Route::get('/backups', [App\Http\Controllers\API\SuperAdminController::class, 'getBackups']);
+    Route::post('/restore/{id}', [App\Http\Controllers\API\SuperAdminController::class, 'restoreBackup']);
+    Route::post('/maintenance', [App\Http\Controllers\API\SuperAdminController::class, 'runMaintenance']);
+    Route::get('/environment', [App\Http\Controllers\API\SuperAdminController::class, 'getEnvironmentInfo']);
 });
 
 require __DIR__.'/settings.php';
