@@ -24,7 +24,7 @@ createInertiaApp({
 // This will set light / dark mode on load...
 initializeTheme();
 
-export default function App({ children }) {
+export default function App({ children }: { children: React.ReactNode }) {
     return (
         <ToastProvider>
             {children}

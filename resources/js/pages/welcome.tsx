@@ -30,7 +30,7 @@ export default function Welcome() {
                         
                         {auth.user && (auth.user.role === 'admin' || auth.user.role === 'super_admin') ? (
                             <Link
-                                href={auth.user.role === 'admin' ? route('admin.dashboard') : route('admin.super')}
+                                href={auth.user.role === 'admin' ? route('admin.dashboard') : route('superadmin.dashboard')}
                                 className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
                             >
                                 Dashboard
